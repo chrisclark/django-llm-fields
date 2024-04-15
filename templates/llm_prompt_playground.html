@@ -1,0 +1,88 @@
+{% extends "admin/base_site.html" %}
+{% load static i18n %}
+
+{% block content %}
+<p>
+  Select a prompt, input the 'human' message, and generate a response from the LLM.
+</p>
+<form method="POST" enctype="multipart/form-data">
+  {% csrf_token %}
+  <table>
+      {{ form.as_table }}
+  </table>
+  <button id="btn_gen">Generate Text</button>
+</form>
+<p id="llm_results" style="max-width: 36rem;"></p>
+<script>
+  var selectDropdown = document.getElementById('id_prompt');
+  var systemTextarea = document.getElementById('id_system_prompt');
+  var humanTextarea = document.getElementById('id_human_prompt');
+  var modelField = document.getElementById('id_model');
+  var llmResults = document.getElementById('llm_results');
+
+  // Add an event listener for the change event on the dropdown
+  selectDropdown.addEventListener('change', function() {
+    // Create the URL
+    var url = '/llm/api/gptprompt/' + this.value + '/';
+
+    // Make the GET request
+    fetch(url, {
+      method: 'GET',
+    })
+    .then(response => response.json())
+    .then(data => {
+      var systemMessage = data.data.attributes["system-message-template"];
+      var humanMessage = data.data.attributes["human-message-template"];
+      var model = data.data.attributes["model"];
+      systemTextarea.value = systemMessage;
+      humanTextarea.value = humanMessage;
+      modelField.value = model;
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+  });
+
+  var btnGen = document.getElementById('btn_gen');
+  var form = document.querySelector('form');
+
+  btnGen.addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var promptValue = selectDropdown.value;
+    var systemMessage = systemTextarea.value;
+    var humanMessage = humanTextarea.value;
+    var modelValue = modelField.value;
+    var csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+    const originalButtonText = btnGen.textContent;
+    btnGen.textContent = 'Loading...';
+    btnGen.disabled = true;
+
+    var formData = new FormData();
+    formData.append('prompt', promptValue);
+    formData.append('system_prompt', systemMessage);
+    formData.append('human_prompt', humanMessage);
+    formData.append('model', modelValue);
+
+    fetch('/llm/api/run-llm-prompt/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': csrfToken
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      llmResults.textContent = data.response_text;
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    })
+    .finally(()=> {
+      btnGen.textContent = originalButtonText;
+      btnGen.disabled = false;
+    })
+  });
+</script>
+{% endblock %}

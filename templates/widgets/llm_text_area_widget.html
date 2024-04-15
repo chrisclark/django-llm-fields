@@ -1,0 +1,42 @@
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var path = window.location.pathname;
+    var pathParts = path.split('/');
+    pathParts = pathParts.filter(function(part) {
+      return part !== '';
+    });
+    var modelId = pathParts[pathParts.length - 2];
+    const generateTextButtons = document.querySelectorAll('.{{widget.btn_class}}');
+    generateTextButtons.forEach(function (button) {
+      button.addEventListener('click', async function (event) {
+        const target = event.target.getAttribute('data-target');
+        const textField = document.querySelector(`[name="${target}"]`);
+        const apiUrl = `{{widget.llm_req_url}}?model_id=${modelId}`;
+        const originalButtonText = button.textContent;
+
+        button.textContent = 'Loading...';
+        button.disabled = true;
+
+        try {
+          const response = await fetch(apiUrl);
+          if (response.ok) {
+            const data = await response.json();
+            textField.value = data.text;
+          } else {
+            console.error('Error fetching data from API:', response.status, response.statusText);
+          }
+        } catch (error) {
+          console.error('Error fetching data from API:', error);
+        } finally {
+          button.textContent = originalButtonText;
+          button.disabled = false;
+        }
+      });
+    });
+  });
+</script>
+
+<textarea name="{{widget.name}}"{% include "django/forms/widgets/attrs.html" %}>
+{% if widget.value %}{{ widget.value }}{% endif %}</textarea>
+
+<button type="button" class="{{widget.btn_class}}" data-target="{{widget.name}}">Generate Text</button>
